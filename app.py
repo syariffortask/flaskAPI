@@ -24,8 +24,6 @@ def allowed_file(filename):
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
-
-
 # Inisialisasi SQLAlchemy
 db.init_app(app)
 
@@ -34,13 +32,10 @@ migrate = Migrate(app,db)
 
 from model import User,Counter
 
-
 # Dapatkan konteks aplikasi sebelum melakukan operasi SQLAlchemy
 with app.app_context():
     # Create the database tables
     db.create_all()
-
-
 
 
 # Routes
@@ -81,7 +76,7 @@ def display_image(filename):
 @app.route('/users', methods=['GET'])
 def get_users():
     users = User.query.all()
-    return jsonify([{'id': user.id, 'username': user.username, 'email': user.email} for user in users])
+    return jsonify([{'username': user.username,'id': user.id, 'email': user.email,'password':user.password} for user in users])
 
 @app.route('/users/<int:user_id>', methods=['GET'])
 def get_user(user_id):
@@ -90,11 +85,37 @@ def get_user(user_id):
 
 @app.route('/users', methods=['POST'])
 def create_user():
+    
+    if not request.json:
+        return jsonify({"message":"Request body harus JSON"}),400
+    
     data = request.get_json()
-    new_user = User(username=data['username'],password=data['password'], email=data['email'])
-    db.session.add(new_user)
-    db.session.commit()
-    return jsonify({'message': 'User created successfully!'})
+    
+    required_fields = ['username', 'email', 'password']
+    for field in required_fields:
+        if field not in data:
+            return jsonify({"message": f"{field} harus diisi"}), 400
+    
+    usr_name = data['username']
+    email = data['email']
+    password = data['password']
+    if not usr_name or not email or not password:
+        return(
+            jsonify({"message":"username,password,email harus di isi"}),400,
+        )
+    
+    existing_user = User.query.filter((User.username == usr_name) | (User.email == email)).first()
+    if existing_user:
+        return jsonify({"message": "username atau email sudah terdaftar"}), 400
+    
+    new_user = User(username=usr_name,password=password, email=email)
+    try:
+        db.session.add(new_user)
+        db.session.commit()
+    except Exception as e:
+        return jsonify({'message': str(e)}),500
+    return jsonify({'message': 'User created successfully!'}),201
+
 
 @app.route('/users/<int:user_id>', methods=['PUT'])
 def update_user(user_id):
@@ -102,6 +123,7 @@ def update_user(user_id):
     data = request.get_json()
     user.username = data['username']
     user.email = data['email']
+    user.password = data['password']
     db.session.commit()
     return jsonify({'message': 'User updated successfully!'})
 
@@ -125,14 +147,43 @@ def get_counter(id):
 
 @app.route('/counter',methods=['POST'])
 def insert_counter():
+    if not request.json:
+        return jsonify({'message': 'Request body harus JSON'}), 400
+    
+    required_field=['lokasi','jenis','track_id']
+    for field in required_field:
+        if field not in request.json:
+            return jsonify({'message': f'Field {field} harus di isi'}), 400
+    
     data = request.get_json()
-    new_count = Counter(lokasi=data['lokasi'],jenis=data['jenis'],track_id=data['track_id'])
-    db.session.add(new_count)
-    db.session.commit()
-    return jsonify({'message': 'Berhasil insert data count'})
+    jenis = data['jenis']
+    lokasi = data['lokasi']
+    track_id = data['track_id']
+    
+    if not lokasi or not track_id or not lokasi:
+        return jsonify({'message': 'Field tidak boleh kosong'}), 400
+    
+    new_count = Counter(lokasi=lokasi,jenis=jenis,track_id=track_id)
+    try:
+        db.session.add(new_count)
+        db.session.commit()
+    except Exception as e:
+        return jsonify({'message': 'Error: ' + str(e)}), 500
+    return jsonify({'message': 'Berhasil insert data count'}),201
 
 @app.route('/counter/<int:id>', methods=['PUT'])
 def update_counter(id):
+    
+    if not request.json:
+        return jsonify({'message': 'Request body harus JSON'}), 400
+    
+    required_field=['lokasi','jenis','track_id']
+    for field in required_field:
+        if field not in request.json:
+            return jsonify({'message': f'Field {field} harus di isi'}), 400
+    
+    
+    
     counter = Counter.query.get_or_404(id)
     data = request.get_json()
     counter.jenis = data['jenis']
