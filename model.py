@@ -22,3 +22,4 @@ class Counter(db.Model):
     def __repr__(self):
         return f'<Counter id={self.id}, lokasi={self.lokasi}, jenis={self.jenis},waktu={self.waktu}>'
     
+    
